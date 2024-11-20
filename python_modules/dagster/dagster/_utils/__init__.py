@@ -836,3 +836,11 @@ def run_with_concurrent_update_guard(
             return
         update_fn(**kwargs)
         return
+
+
+def to_snake_case(string: str) -> str:
+    # Add an underscore before capital letters and lower the case
+    string = re.sub(r"(?<!^)(?=[A-Z])", "_", string).lower()
+    # Replace any non-alphanumeric characters with underscores
+    string = re.sub(r"[^a-z0-9_]", "_", string)
+    return string

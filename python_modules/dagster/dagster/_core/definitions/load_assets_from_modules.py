@@ -2,7 +2,20 @@ import inspect
 import pkgutil
 from importlib import import_module
 from types import ModuleType
-from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple, Union, cast
+from typing import (
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import dagster._check as check
 from dagster._core.definitions.asset_key import (
@@ -23,14 +36,22 @@ from dagster._core.definitions.utils import resolve_automation_condition
 from dagster._core.errors import DagsterInvalidDefinitionError
 
 
-def find_objects_in_module_of_types(module: ModuleType, types) -> Iterator:
-    """Yields objects of the given type(s)."""
+def find_objects_in_module_of_types(
+    module: ModuleType,
+    types: Union[Type, Tuple[Type, ...]],
+    mode: Literal["instance", "subclass"] = "instance",
+) -> Iterator:
+    """Yields instances or subclasses of the given type(s)."""
     for attr in dir(module):
         value = getattr(module, attr)
-        if isinstance(value, types):
-            yield value
-        elif isinstance(value, list) and all(isinstance(el, types) for el in value):
-            yield from value
+        if mode == "instance":
+            if isinstance(value, types):
+                yield value
+            elif isinstance(value, list) and all(isinstance(el, types) for el in value):
+                yield from value
+        elif mode == "subclass" and isinstance(value, type):
+            if issubclass(value, types):
+                yield value
 
 
 def assets_from_modules(
