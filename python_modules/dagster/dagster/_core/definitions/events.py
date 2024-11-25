@@ -58,6 +58,17 @@ class AssetKeyPartitionKey(NamedTuple):
     partition_key: Optional[str] = None
 
 
+# This is a "work token" associated with the background process responsible
+# for wiping the asset
+BackgroundAssetWipeWorkToken = str
+
+
+class BackgroundAssetWipeStatus(Enum):
+    SUCCESS = "SUCCESS"
+    IN_PROGRESS = "IN_PROGRESS"
+    FAILED = "FAILED"
+
+
 # This is currently used only for the asset partition wipe codepath. In the future, we can rename
 # to AssetPartitionRange or similar for more general use.
 class AssetPartitionWipeRange(NamedTuple):
