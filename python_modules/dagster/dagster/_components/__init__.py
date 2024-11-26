@@ -1,18 +1,20 @@
 import importlib.util
 import os
 import sys
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, ClassVar, Dict, Final, Iterable, Optional, Type
+from typing import TYPE_CHECKING, ClassVar, Dict, Final, Iterable, Optional, Type, Union
 
 from dagster._core.errors import DagsterError
+from dagster._model import DagsterModel
 from dagster._utils import to_snake_case
 
 if TYPE_CHECKING:
     from dagster._core.definitions.definitions_class import Definitions
 
 
-class Component(ABC):
+class Component(DagsterModel):
     name: ClassVar[Optional[str]] = None
 
     @classmethod
@@ -24,7 +26,7 @@ class Component(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def build_defs(self) -> "Definitions": ...
+    def build_defs(self, context: "ComponentLoadContext") -> "Definitions": ...
 
 
 def is_inside_deployment_project(path: str = ".") -> bool:
@@ -78,9 +80,9 @@ _CODE_LOCATION_COMPONENT_INSTANCES_DIR: Final = "components"
 
 
 class DeploymentProjectContext:
-    def __init__(self, path: Optional[str] = None):
-        path = path or os.getcwd()
-        self._deployment_root = _resolve_deployment_root(path)
+    def __init__(self, path: Optional[Union[str, Path]] = None):
+        path = Path(path or os.getcwd())
+        self._deployment_root = _resolve_deployment_root(str(path))
 
     @property
     def deployment_root(self) -> str:
@@ -95,10 +97,10 @@ class DeploymentProjectContext:
 
 
 class CodeLocationProjectContext:
-    def __init__(self, path: Optional[str] = None):
-        path = path or os.getcwd()
+    def __init__(self, path: Optional[Union[str, Path]] = None):
+        path = Path(path or os.getcwd())
         self._deployment_context = DeploymentProjectContext(path)
-        self._root = _resolve_code_location_root(path)
+        self._root = _resolve_code_location_root(str(path))
         self._name = os.path.basename(self._root)
         self._component_registry = ComponentRegistry()
 
@@ -143,6 +145,26 @@ class CodeLocationProjectContext:
         return os.path.exists(
             os.path.join(self._root, self._name, _CODE_LOCATION_COMPONENT_INSTANCES_DIR, name)
         )
+
+
+class ComponentLoadContext:
+    def __init__(self, path: Path):
+        # TODO: hook this up to the component registry
+        self.path = path
+
+    def load_component(self, component: Component) -> "Definitions":
+        # TODO: ability to load a component from yaml
+        # if component is None:
+        #    component_config_path = path / "defs.yml"
+        #    component_config = yaml_safe_load(component_config_path)
+        #    component_name = component_config["name"]
+        #    component_class = self.get_component_type(component_name)
+        #    component = load_pydantic_model_from_path(component_class, path)
+        return component.build_defs(self)
+
+
+def load_component_from_path(path: Path, component: Component) -> "Definitions":
+    return ComponentLoadContext(path).load_component(component)
 
 
 class ComponentRegistry:
